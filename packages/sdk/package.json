@@ -1,0 +1,29 @@
+{
+  "name": "@settle/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Settle programmable agreement and settlement protocol",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
+  },
+  "keywords": ["settle", "stellar", "soroban", "escrow", "agreements", "sdk"],
+  "license": "MIT",
+  "dependencies": {
+    "@stellar/stellar-sdk": "^12.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
