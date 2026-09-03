@@ -212,20 +212,20 @@ async fn store_event(db_pool: &PgPool, event: &SettleEvent) -> Result<()> {
         }
     };
 
-    sqlx::query!(
+    sqlx::query(
         r#"
         INSERT INTO settlement_events (event_type, agreement_id, milestone_id, dispute_id, participant, data, timestamp, block_height, transaction_hash)
         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
-        "#,
-        event_type,
-        agreement_id,
-        milestone_id,
-        dispute_id,
-        participant,
-        json!({}), // For now, store empty JSON. In production, store full event data
-        block_height,
-        tx_hash
+        "#
     )
+    .bind(event_type)
+    .bind(agreement_id)
+    .bind(milestone_id)
+    .bind(dispute_id)
+    .bind(participant)
+    .bind(json!({})) // For now, store empty JSON. In production, store full event data
+    .bind(block_height)
+    .bind(tx_hash)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -253,7 +253,7 @@ async fn create_or_update_agreement(
         .unwrap_or_else(|| chrono::Utc::now())
         .naive_utc();
 
-    sqlx::query!(
+    sqlx::query(
         r#"
         INSERT INTO agreements (on_chain_id, creator, counterparty, token, total_amount, status, created_at, expires_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -261,16 +261,16 @@ async fn create_or_update_agreement(
         DO UPDATE SET 
             status = EXCLUDED.status,
             updated_at = NOW()
-        "#,
-        agreement_id,
-        creator,
-        counterparty,
-        token,
-        total_amount as i64,
-        status,
-        created_at_dt,
-        expires_at_dt
+        "#
     )
+    .bind(agreement_id)
+    .bind(creator)
+    .bind(counterparty)
+    .bind(token)
+    .bind(total_amount as i64)
+    .bind(status)
+    .bind(created_at_dt)
+    .bind(expires_at_dt)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -279,12 +279,12 @@ async fn create_or_update_agreement(
 }
 
 async fn update_agreement_funding(db_pool: &PgPool, agreement_id: &str, funded_amount: i128, status: &str) -> Result<()> {
-    sqlx::query!(
-        "UPDATE agreements SET funded_amount = $1, status = $2, updated_at = NOW() WHERE on_chain_id = $3",
-        funded_amount as i64,
-        status,
-        agreement_id
+    sqlx::query(
+        "UPDATE agreements SET funded_amount = $1, status = $2, updated_at = NOW() WHERE on_chain_id = $3"
     )
+    .bind(funded_amount as i64)
+    .bind(status)
+    .bind(agreement_id)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -293,11 +293,11 @@ async fn update_agreement_funding(db_pool: &PgPool, agreement_id: &str, funded_a
 }
 
 async fn update_agreement_status(db_pool: &PgPool, agreement_id: &str, status: &str) -> Result<()> {
-    sqlx::query!(
-        "UPDATE agreements SET status = $1, updated_at = NOW() WHERE on_chain_id = $2",
-        status,
-        agreement_id
+    sqlx::query(
+        "UPDATE agreements SET status = $1, updated_at = NOW() WHERE on_chain_id = $2"
     )
+    .bind(status)
+    .bind(agreement_id)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -313,14 +313,14 @@ async fn create_or_update_milestone(
     description: &str,
     amount: i128,
     due_date: u64,
-    timestamp: u64,
+    _timestamp: u64,
     status: &str,
 ) -> Result<()> {
     let due_date_dt = chrono::DateTime::from_timestamp(due_date as i64, 0)
         .unwrap_or_else(|| chrono::Utc::now())
         .naive_utc();
 
-    sqlx::query!(
+    sqlx::query(
         r#"
         INSERT INTO milestones (on_chain_id, agreement_id, name, description, amount, status, due_date)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -328,15 +328,15 @@ async fn create_or_update_milestone(
         DO UPDATE SET
             status = EXCLUDED.status,
             updated_at = NOW()
-        "#,
-        milestone_id,
-        agreement_id,
-        name,
-        description,
-        amount as i64,
-        status,
-        due_date_dt
+        "#
     )
+    .bind(milestone_id)
+    .bind(agreement_id)
+    .bind(name)
+    .bind(description)
+    .bind(amount as i64)
+    .bind(status)
+    .bind(due_date_dt)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -349,13 +349,13 @@ async fn update_milestone_submission(db_pool: &PgPool, milestone_id: &str, evide
         .unwrap_or_else(|| chrono::Utc::now())
         .naive_utc();
 
-    sqlx::query!(
-        "UPDATE milestones SET evidence = $1, submitted_at = $2, status = $3, updated_at = NOW() WHERE on_chain_id = $4",
-        evidence,
-        submitted_at_dt,
-        status,
-        milestone_id
+    sqlx::query(
+        "UPDATE milestones SET evidence = $1, submitted_at = $2, status = $3, updated_at = NOW() WHERE on_chain_id = $4"
     )
+    .bind(evidence)
+    .bind(submitted_at_dt)
+    .bind(status)
+    .bind(milestone_id)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -368,12 +368,12 @@ async fn update_milestone_approval(db_pool: &PgPool, milestone_id: &str, timesta
         .unwrap_or_else(|| chrono::Utc::now())
         .naive_utc();
 
-    sqlx::query!(
-        "UPDATE milestones SET approved_at = $1, status = $2, updated_at = NOW() WHERE on_chain_id = $3",
-        approved_at_dt,
-        status,
-        milestone_id
+    sqlx::query(
+        "UPDATE milestones SET approved_at = $1, status = $2, updated_at = NOW() WHERE on_chain_id = $3"
     )
+    .bind(approved_at_dt)
+    .bind(status)
+    .bind(milestone_id)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -382,11 +382,11 @@ async fn update_milestone_approval(db_pool: &PgPool, milestone_id: &str, timesta
 }
 
 async fn update_milestone_status(db_pool: &PgPool, milestone_id: &str, status: &str) -> Result<()> {
-    sqlx::query!(
-        "UPDATE milestones SET status = $1, updated_at = NOW() WHERE on_chain_id = $2",
-        status,
-        milestone_id
+    sqlx::query(
+        "UPDATE milestones SET status = $1, updated_at = NOW() WHERE on_chain_id = $2"
     )
+    .bind(status)
+    .bind(milestone_id)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -407,7 +407,7 @@ async fn create_or_update_dispute(
         .unwrap_or_else(|| chrono::Utc::now())
         .naive_utc();
 
-    sqlx::query!(
+    sqlx::query(
         r#"
         INSERT INTO disputes (on_chain_id, agreement_id, opened_by, reason, status, opened_at)
         VALUES ($1, $2, $3, $4, $5, $6)
@@ -415,14 +415,14 @@ async fn create_or_update_dispute(
         DO UPDATE SET
             status = EXCLUDED.status,
             updated_at = NOW()
-        "#,
-        dispute_id,
-        agreement_id,
-        opener,
-        reason,
-        status,
-        opened_at_dt
+        "#
     )
+    .bind(dispute_id)
+    .bind(agreement_id)
+    .bind(opener)
+    .bind(reason)
+    .bind(status)
+    .bind(opened_at_dt)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -431,11 +431,11 @@ async fn create_or_update_dispute(
 }
 
 async fn add_dispute_evidence(db_pool: &PgPool, dispute_id: &str, evidence: &str) -> Result<()> {
-    sqlx::query!(
-        "UPDATE disputes SET evidence = array_append(evidence, $1), updated_at = NOW() WHERE on_chain_id = $2",
-        evidence,
-        dispute_id
+    sqlx::query(
+        "UPDATE disputes SET evidence = array_append(evidence, $1), updated_at = NOW() WHERE on_chain_id = $2"
     )
+    .bind(evidence)
+    .bind(dispute_id)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -444,11 +444,11 @@ async fn add_dispute_evidence(db_pool: &PgPool, dispute_id: &str, evidence: &str
 }
 
 async fn update_dispute_status(db_pool: &PgPool, dispute_id: &str, status: &str) -> Result<()> {
-    sqlx::query!(
-        "UPDATE disputes SET status = $1, updated_at = NOW() WHERE on_chain_id = $2",
-        status,
-        dispute_id
+    sqlx::query(
+        "UPDATE disputes SET status = $1, updated_at = NOW() WHERE on_chain_id = $2"
     )
+    .bind(status)
+    .bind(dispute_id)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;
@@ -461,13 +461,13 @@ async fn resolve_dispute(db_pool: &PgPool, dispute_id: &str, arbitrator: &str, r
         .unwrap_or_else(|| chrono::Utc::now())
         .naive_utc();
 
-    sqlx::query!(
-        "UPDATE disputes SET arbitrator = $1, resolution = $2, resolved_at = $3, status = 'RESOLVED', updated_at = NOW() WHERE on_chain_id = $4",
-        arbitrator,
-        resolution,
-        resolved_at_dt,
-        dispute_id
+    sqlx::query(
+        "UPDATE disputes SET arbitrator = $1, resolution = $2, resolved_at = $3, status = 'RESOLVED', updated_at = NOW() WHERE on_chain_id = $4"
     )
+    .bind(arbitrator)
+    .bind(resolution)
+    .bind(resolved_at_dt)
+    .bind(dispute_id)
     .execute(db_pool)
     .await
     .map_err(|e| AppError::Database(e.to_string()))?;

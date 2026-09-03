@@ -66,7 +66,6 @@ async fn main() -> Result<()> {
     // Initialize Stellar client
     let stellar_client = Arc::new(StellarClient::new(
         config.stellar.horizon_url.clone(),
-        config.stellar.network_passphrase.clone(),
     ));
 
     // Initialize services

@@ -1,10 +1,12 @@
 use crate::{domain::dispute::Dispute, errors::Result};
 use tracing::info;
 
-pub struct DisputeService {}
+pub struct DisputeService {
+    _db_pool: sqlx::PgPool,
+}
 
 impl DisputeService {
-    pub fn new() -> Self { Self {} }
+    pub fn new(db_pool: sqlx::PgPool) -> Self { Self { _db_pool: db_pool } }
 
     pub async fn open_dispute(
         &self,

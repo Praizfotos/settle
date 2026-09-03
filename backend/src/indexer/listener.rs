@@ -26,7 +26,7 @@ pub struct ListenerConfig {
 }
 
 /// Persistent cursor so the indexer can resume after a restart.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct IndexerCursor {
     pub last_ledger: i64,
 }
@@ -105,15 +105,26 @@ impl IndexerListener {
 
         // Fetch events from Stellar
         let raw_events = self.config.stellar_client.get_events(
-            &self.config.contract_address,
             from_ledger as u32,
-            to_ledger as u32,
+            &[&self.config.contract_address],
+            self.config.batch_size,
         ).await?;
 
         let mut events_processed = 0;
 
         // Process each event
-        for raw_event in raw_events {
+        for value in raw_events {
+            // Convert serde_json::Value to RawEvent
+            let raw_event = RawEvent {
+                ledger: value["ledger"].as_u64().unwrap_or(0) as u32,
+                transaction_hash: value["transaction_hash"].as_str().unwrap_or("").to_string(),
+                contract_id: value["contract_id"].as_str().unwrap_or("").to_string(),
+                topics: value["topics"].as_array()
+                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default(),
+                data: value["data"].as_str().unwrap_or("").to_string(),
+            };
+
             match decode(raw_event) {
                 Ok(settle_event) => {
                     if let Err(e) = process(db_pool, settle_event).await {
@@ -138,8 +149,7 @@ impl IndexerListener {
     }
 
     async fn load_cursor(&self, db_pool: &PgPool) -> Result<IndexerCursor> {
-        let row = sqlx::query_as!(
-            IndexerCursor,
+        let row = sqlx::query_as::<_, IndexerCursor>(
             "SELECT last_ledger FROM indexer_cursor ORDER BY id DESC LIMIT 1"
         )
         .fetch_optional(db_pool)
@@ -150,10 +160,10 @@ impl IndexerListener {
     }
 
     async fn update_cursor(&self, db_pool: &PgPool, ledger: i64) -> Result<()> {
-        sqlx::query!(
-            "UPDATE indexer_cursor SET last_ledger = $1, last_processed_at = NOW() WHERE id = (SELECT id FROM indexer_cursor ORDER BY id DESC LIMIT 1)",
-            ledger
+        sqlx::query(
+            "UPDATE indexer_cursor SET last_ledger = $1, last_processed_at = NOW() WHERE id = (SELECT id FROM indexer_cursor ORDER BY id DESC LIMIT 1)"
         )
+        .bind(ledger)
         .execute(db_pool)
         .await
         .map_err(|e| AppError::Database(e.to_string()))?;

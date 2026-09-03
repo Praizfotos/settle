@@ -6,7 +6,13 @@ use thiserror::Error;
 pub enum AppError {
     // ── Database ──────────────────────────────────────────────────────
     #[error("database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(String),
+
+    #[error("database connection error: {0}")]
+    DatabaseConnection(String),
+
+    #[error("migration error: {0}")]
+    Migration(String),
 
     // ── Stellar / Soroban ─────────────────────────────────────────────
     #[error("stellar rpc error: {0}")]
@@ -36,6 +42,9 @@ pub enum AppError {
 
     #[error("unauthorized")]
     Unauthorized,
+
+    #[error("invalid input: {0}")]
+    InvalidInput(String),
 
     // ── Indexer ───────────────────────────────────────────────────────
     #[error("indexer cursor error: {0}")]

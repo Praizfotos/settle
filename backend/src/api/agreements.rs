@@ -9,8 +9,10 @@ use axum::{
 };
 use serde_json::{json, Value};
 
+use crate::AppState;
+
 // TODO: wire AppState with DB pool + service layer
-pub fn router() -> Router {
+pub fn router() -> Router<AppState> {
     Router::new()
         .route("/",    post(create_agreement))
         .route("/",    get(list_agreements))

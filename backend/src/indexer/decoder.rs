@@ -231,12 +231,12 @@ pub fn decode(raw_event: RawEvent) -> Result<SettleEvent> {
     // For MVP, we'll implement basic event decoding
     // In production, this would parse the XDR-encoded data field
     match event_type.as_str() {
-        "AgreementCreated" => decode_agreement_created(raw_event, participant),
-        "AgreementFunded" => decode_agreement_funded(raw_event, participant),
-        "AgreementActivated" => decode_agreement_activated(raw_event, participant),
-        "MilestoneSubmitted" => decode_milestone_submitted(raw_event, participant),
-        "MilestoneApproved" => decode_milestone_approved(raw_event, participant),
-        "DisputeOpened" => decode_dispute_opened(raw_event, participant),
+        "AgreementCreated" => decode_agreement_created(raw_event.clone(), participant),
+        "AgreementFunded" => decode_agreement_funded(raw_event.clone(), participant),
+        "AgreementActivated" => decode_agreement_activated(raw_event.clone(), participant),
+        "MilestoneSubmitted" => decode_milestone_submitted(raw_event.clone(), participant),
+        "MilestoneApproved" => decode_milestone_approved(raw_event.clone(), participant),
+        "DisputeOpened" => decode_dispute_opened(raw_event.clone(), participant),
         _ => {
             warn!("Unknown event type: {}", event_type);
             Err(AppError::InvalidInput(format!("Unknown event type: {}", event_type)))

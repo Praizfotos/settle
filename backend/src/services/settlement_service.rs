@@ -1,10 +1,12 @@
 use crate::errors::Result;
 use tracing::info;
 
-pub struct SettlementService {}
+pub struct SettlementService {
+    _db_pool: sqlx::PgPool,
+}
 
 impl SettlementService {
-    pub fn new() -> Self { Self {} }
+    pub fn new(db_pool: sqlx::PgPool) -> Self { Self { _db_pool: db_pool } }
 
     /// Trigger a milestone release: calls escrow.release on-chain,
     /// then records the settlement event in the DB.

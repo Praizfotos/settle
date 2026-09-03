@@ -1,7 +1,9 @@
 use axum::{extract::Path, http::StatusCode, response::Json, routing::{get, post}, Router};
 use serde_json::{json, Value};
 
-pub fn router() -> Router {
+use crate::AppState;
+
+pub fn router() -> Router<AppState> {
     Router::new()
         .route("/",                    post(add_milestone))
         .route("/:agreement_id",       get(list_milestones))

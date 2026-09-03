@@ -11,12 +11,12 @@ use crate::{
 use tracing::{info, warn};
 
 pub struct AgreementService {
-    // TODO: inject DB pool and StellarClient
+    db_pool: sqlx::PgPool,
 }
 
 impl AgreementService {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(db_pool: sqlx::PgPool) -> Self {
+        Self { db_pool }
     }
 
     /// Build and submit a create_agreement Soroban invocation.

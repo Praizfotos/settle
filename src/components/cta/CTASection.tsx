@@ -32,7 +32,7 @@ export function CTASection() {
               <a
                 href="#get-started"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 text-[14px] font-semibold text-[#1254D8] bg-white rounded-[10px] hover:bg-gray-50 active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
+                style={{  boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
               >
                 Get Started
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
