@@ -3,8 +3,17 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@/lib/wallet";
 import { useRouter } from "next/navigation";
-import { Address, Contract, nativeToScVal, StrKey, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
-import * as SorobanRpc from "@stellar/stellar-sdk/rpc";
+import settleSdk from "@stellar/stellar-sdk";
+
+const {
+  Address,
+  Contract,
+  nativeToScVal,
+  StrKey,
+  TransactionBuilder,
+  xdr,
+} = settleSdk;
+const SorobanRpc = settleSdk.rpc;
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const NETWORK_PASSPHRASE = "Test SDF Network ; September 2015";
