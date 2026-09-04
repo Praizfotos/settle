@@ -13,6 +13,7 @@ The core agreement and milestone lifecycle has been verified on Stellar Testnet 
 ### Verified Testnet Deployment
 
 **Contract**: `CBLYA2COXPBCFMCJUSB74B6JEVOMHIHQE7YZYV3I42BXCLZOYOEHJTE7`
+**Test Token (SEP-41)**: `CCQPQBKJ3D6WTU3CFINUZ5XLQFMMVXO6NJTWTSQJSMSCGTYLOEO4K7EZ`
 
 | Step | Tx Hash |
 |------|---------|
@@ -35,6 +36,32 @@ The core agreement and milestone lifecycle has been verified on Stellar Testnet 
 - Freighter wallet signs transactions
 - Transactions submit and confirm on Testnet
 - Real transaction hashes viewable on Stellar Expert
+
+## Demo
+
+### Landing page
+
+![Landing page](docs/demo/01-landing.png)
+
+### Connect wallet with Freighter
+
+![Connect wallet](docs/demo/02-connect-wallet.png)
+
+### Create a new agreement
+
+![New agreement form](docs/demo/03-new-agreement.png)
+
+### Agreement created on-chain
+
+![Agreement created](docs/demo/04-agreement-created.png)
+
+### Agreement detail with actions
+
+![Agreement detail](docs/demo/05-agreement-detail.png)
+
+### Agreement funded
+
+![Agreement funded](docs/demo/06-funded.png)
 
 ### What is in development
 

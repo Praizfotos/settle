@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@/lib/wallet";
 import { useRouter } from "next/navigation";
-import { Address, Contract, nativeToScVal, TransactionBuilder, Transaction } from "@stellar/stellar-sdk";
+import { Address, Contract, nativeToScVal, StrKey, TransactionBuilder, Transaction } from "@stellar/stellar-sdk";
 import * as SorobanRpc from "@stellar/stellar-sdk/rpc";
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
@@ -25,7 +25,7 @@ export default function NewAgreementPage() {
 
   const [counterparty, setCounterparty] = useState("");
   const [token, setToken] = useState(
-    "CBIELTK6YQZD7SPHE7G4DHLMGIQHW7T3M2YBWUHQKNPK5KXHSP5BF7YB"
+    "CCQPQBKJ3D6WTU3CFINUZ5XLQFMMVXO6NJTWTSQJSMSCGTYLOEO4K7EZ"
   );
   const [totalAmount, setTotalAmount] = useState("");
   const [title, setTitle] = useState("");
@@ -33,6 +33,14 @@ export default function NewAgreementPage() {
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+
+  function toAddressScVal(val: string) {
+    if (val.startsWith("C")) {
+      const rawBytes = StrKey.decodeContract(val);
+      return Address.contract(Buffer.from(rawBytes)).toScVal();
+    }
+    return Address.fromString(val).toScVal();
+  }
 
   const generateId = useCallback(() => {
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -79,9 +87,9 @@ export default function NewAgreementPage() {
 
       const args = [
         nativeToScVal(agreementId, { type: "string" }),
-        Address.fromString(address).toScVal(),
-        Address.fromString(counterparty).toScVal(),
-        Address.fromString(token).toScVal(),
+        toAddressScVal(address),
+        toAddressScVal(counterparty),
+        toAddressScVal(token),
         nativeToScVal(amountBigInt.toString(), { type: "i128" }),
         nativeToScVal(expiresAt.toString(), { type: "u64" }),
         nativeToScVal(milestoneScVals, { type: "vec" }),
