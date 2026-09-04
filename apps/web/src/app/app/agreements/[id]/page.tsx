@@ -71,21 +71,40 @@ async function invokeContract(
     ? signedResult
     : signedResult.signedTxXdr;
 
-  const { Transaction } = await import("@stellar/stellar-sdk");
-  const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
-  const sendResult = await server.sendTransaction(signedTx);
+  // Submit via direct RPC to avoid Transaction class mismatch across bundles
+  const sendResponse = await fetch(RPC_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "send-tx",
+      method: "sendTransaction",
+      params: { tx: signedXdr },
+    }),
+  }).then((r) => r.json());
 
-  if (sendResult.status === "ERROR") {
-    throw new Error(`Transaction failed: ${JSON.stringify(sendResult)}`);
+  if (sendResponse.error) {
+    throw new Error(`RPC error: ${JSON.stringify(sendResponse.error)}`);
   }
 
-  const txHash = sendResult.hash;
+  const txHash = sendResponse.result.hash;
 
   // Poll for confirmation
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 2000));
-    const txResult = await server.getTransaction(txHash);
-    if (txResult.status !== "NOT_FOUND") {
+    const pollResponse = await fetch(RPC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "get-tx",
+        method: "getTransaction",
+        params: { hash: txHash },
+      }),
+    }).then((r) => r.json());
+
+    const txResult = pollResponse.result;
+    if (txResult && txResult.status !== "NOT_FOUND") {
       if (txResult.status === "SUCCESS") {
         return { hash: txHash };
       }

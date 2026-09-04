@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@/lib/wallet";
 import { useRouter } from "next/navigation";
-import { Address, Contract, nativeToScVal, StrKey, Transaction, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
+import { Address, Contract, nativeToScVal, StrKey, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
 import * as SorobanRpc from "@stellar/stellar-sdk/rpc";
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
@@ -134,22 +134,42 @@ export default function NewAgreementPage() {
 
       setTxState("submitting");
 
-      const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
-      const sendResult = await server.sendTransaction(signedTx);
+      // Submit via direct RPC call to avoid Transaction class mismatch across bundles
+      const sendResponse = await fetch(RPC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "send-tx",
+          method: "sendTransaction",
+          params: { tx: signedXdr },
+        }),
+      }).then((r) => r.json());
 
-      if (sendResult.status === "ERROR") {
-        throw new Error(`Transaction failed: ${JSON.stringify(sendResult)}`);
+      if (sendResponse.error) {
+        throw new Error(`RPC error: ${JSON.stringify(sendResponse.error)}`);
       }
 
-      const txHash = sendResult.hash;
+      const txHash = sendResponse.result.hash;
       setTxHash(txHash);
       setTxState("confirming");
 
       // Poll for confirmation
       for (let i = 0; i < 30; i++) {
         await new Promise((r) => setTimeout(r, 2000));
-        const txResult = await server.getTransaction(txHash);
-        if (txResult.status !== "NOT_FOUND") {
+        const pollResponse = await fetch(RPC_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: "get-tx",
+            method: "getTransaction",
+            params: { hash: txHash },
+          }),
+        }).then((r) => r.json());
+
+        const txResult = pollResponse.result;
+        if (txResult && txResult.status !== "NOT_FOUND") {
           if (txResult.status === "SUCCESS") {
             setTxState("success");
             setTimeout(() => router.push("/app/agreements"), 3000);
