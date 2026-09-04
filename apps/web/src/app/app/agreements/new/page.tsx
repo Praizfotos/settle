@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@/lib/wallet";
 import { useRouter } from "next/navigation";
-import { Address, Contract, nativeToScVal, StrKey, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
+import { Address, Contract, nativeToScVal, StrKey, Transaction, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
 import * as SorobanRpc from "@stellar/stellar-sdk/rpc";
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
@@ -104,43 +104,44 @@ export default function NewAgreementPage() {
 
       const transaction = txBuilder.build();
 
+      // Simulate to get Soroban resource budget
+      const simulated = await server.simulateTransaction(transaction);
+      if ("error" in simulated) {
+        throw new Error(`Simulation failed: ${JSON.stringify(simulated.error)}`);
+      }
+
+      // Build soroban-authorized transaction with resource budget
+      const preparedTx = await server.prepareTransaction(transaction);
+
       setTxState("signing");
 
-      // Use Freighter to sign
+      // Use Freighter to sign the prepared transaction
       const freighter = await import("@stellar/freighter-api");
-      const txXdr = transaction.toXDR("base64");
+      const txXdr = preparedTx.toXDR();
+
       const signedResult = await freighter.signTransaction(txXdr, {
         networkPassphrase: NETWORK_PASSPHRASE,
         address,
       });
+
       const signedXdr = typeof signedResult === "string"
         ? signedResult
-        : signedResult.signedTxXdr ?? signedResult.signedTxBase64 ?? JSON.stringify(signedResult);
+        : signedResult.signedTxXdr;
 
       if (!signedXdr || typeof signedXdr !== "string") {
-        throw new Error("Freighter did not return signed XDR. Got: " + JSON.stringify(signedResult));
+        throw new Error("Freighter returned: " + JSON.stringify(signedResult));
       }
 
       setTxState("submitting");
 
-      const sendResult = await fetch(RPC_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "sendTransaction",
-          params: {
-            tx: signedXdr,
-          },
-        }),
-      }).then((r) => r.json());
+      const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
+      const sendResult = await server.sendTransaction(signedTx);
 
-      if (sendResult.error) {
-        throw new Error(`Transaction failed: ${JSON.stringify(sendResult.error)}`);
+      if (sendResult.status === "ERROR") {
+        throw new Error(`Transaction failed: ${JSON.stringify(sendResult)}`);
       }
 
-      const txHash = sendResult.result?.hash ?? sendResult.hash;
+      const txHash = sendResult.hash;
       setTxHash(txHash);
       setTxState("confirming");
 
