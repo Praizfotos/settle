@@ -5,8 +5,17 @@ import { useParams } from "next/navigation";
 import { useWallet } from "@/lib/wallet";
 import { getAgreement, listMilestones } from "@/lib/api";
 import type { ApiAgreement, ApiMilestone } from "@/lib/api";
-import { Address, Contract, nativeToScVal, SorobanRpc, TransactionBuilder } from "@stellar/stellar-sdk";
+import * as sdk from "@stellar/stellar-sdk";
 import Link from "next/link";
+const {
+  Address,
+  Contract,
+  nativeToScVal,
+  StrKey,
+  TransactionBuilder,
+  xdr,
+} = sdk;
+const SorobanRpc = sdk.rpc;
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const NETWORK_PASSPHRASE = "Test SDF Network ; September 2015";

@@ -39,29 +39,21 @@ The core agreement and milestone lifecycle has been verified on Stellar Testnet 
 
 ## Demo
 
-### Landing page
+### Landing Page
 
-![Landing page](docs/demo/01-landing.png)
+![Settle Landing Page](docs/demo/01-landing.png)
 
-### Connect wallet with Freighter
+### Connect Wallet
 
-![Connect wallet](docs/demo/02-connect-wallet.png)
+![Settle Connect Wallet](docs/demo/02-connect-wallet.png)
 
-### Create a new agreement
+### Dashboard
 
-![New agreement form](docs/demo/03-new-agreement.png)
+![Settle Dashboard](docs/demo/03-Dashboard.png)
 
-### Agreement created on-chain
+### Create New Agreement
 
-![Agreement created](docs/demo/04-agreement-created.png)
-
-### Agreement detail with actions
-
-![Agreement detail](docs/demo/05-agreement-detail.png)
-
-### Agreement funded
-
-![Agreement funded](docs/demo/06-funded.png)
+![Settle New Agreement](docs/demo/04-new-agreement.png)
 
 ### What is in development
 
