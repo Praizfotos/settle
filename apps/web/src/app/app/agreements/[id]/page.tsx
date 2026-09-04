@@ -59,27 +59,42 @@ async function invokeContract(
   const transaction = txBuilder.build();
 
   const freighter = await import("@stellar/freighter-api");
-  const signedResult = await freighter.signTransaction(transaction.toXDR(), {
+  const txXdr = transaction.toXDR("base64");
+  const signedResult = await freighter.signTransaction(txXdr, {
     networkPassphrase: NETWORK_PASSPHRASE,
     address,
   });
-  const signedXdr = typeof signedResult === "string" ? signedResult : signedResult.signedTxXdr;
+  const signedXdr = typeof signedResult === "string"
+    ? signedResult
+    : signedResult.signedTxXdr ?? signedResult.signedTxBase64;
 
-  const { Transaction } = await import("@stellar/stellar-sdk");
-  const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
-  const sendResult = await server.sendTransaction(signedTx);
+  const sendResponse = await fetch(RPC_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "sendTransaction",
+      params: { tx: signedXdr },
+    }),
+  }).then((r) => r.json());
 
-  if (sendResult.status === "ERROR") {
-    throw new Error(`Transaction failed: ${JSON.stringify(sendResult)}`);
+  if (sendResponse.error) {
+    throw new Error(`Transaction failed: ${JSON.stringify(sendResponse.error)}`);
+  }
+
+  const txHash = sendResponse.result?.hash;
+  if (!txHash) {
+    throw new Error("No transaction hash in response: " + JSON.stringify(sendResponse));
   }
 
   // Poll for confirmation
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 2000));
-    const txResult = await server.getTransaction(sendResult.hash);
+    const txResult = await server.getTransaction(txHash);
     if (txResult.status !== "NOT_FOUND") {
       if (txResult.status === "SUCCESS") {
-        return { hash: sendResult.hash };
+        return { hash: txHash };
       }
       throw new Error(`Transaction failed: ${txResult.status}`);
     }

@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@/lib/wallet";
 import { useRouter } from "next/navigation";
-import { Address, Contract, nativeToScVal, StrKey, TransactionBuilder, Transaction, xdr } from "@stellar/stellar-sdk";
+import { Address, Contract, nativeToScVal, StrKey, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
 import * as SorobanRpc from "@stellar/stellar-sdk/rpc";
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
@@ -108,29 +108,46 @@ export default function NewAgreementPage() {
 
       // Use Freighter to sign
       const freighter = await import("@stellar/freighter-api");
-      const signedResult = await freighter.signTransaction(transaction.toXDR(), {
+      const txXdr = transaction.toXDR("base64");
+      const signedResult = await freighter.signTransaction(txXdr, {
         networkPassphrase: NETWORK_PASSPHRASE,
         address,
       });
-      const signedXdr = typeof signedResult === "string" ? signedResult : signedResult.signedTxXdr;
+      const signedXdr = typeof signedResult === "string"
+        ? signedResult
+        : signedResult.signedTxXdr ?? signedResult.signedTxBase64 ?? JSON.stringify(signedResult);
+
+      if (!signedXdr || typeof signedXdr !== "string") {
+        throw new Error("Freighter did not return signed XDR. Got: " + JSON.stringify(signedResult));
+      }
 
       setTxState("submitting");
 
-      const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
-      const sendResult = await server.sendTransaction(signedTx);
+      const sendResult = await fetch(RPC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "sendTransaction",
+          params: {
+            tx: signedXdr,
+          },
+        }),
+      }).then((r) => r.json());
 
-      if (sendResult.status === "ERROR") {
-        const errorStr = JSON.stringify(sendResult);
-        throw new Error(`Transaction failed: ${errorStr}`);
+      if (sendResult.error) {
+        throw new Error(`Transaction failed: ${JSON.stringify(sendResult.error)}`);
       }
 
-      setTxHash(sendResult.hash);
+      const txHash = sendResult.result?.hash ?? sendResult.hash;
+      setTxHash(txHash);
       setTxState("confirming");
 
       // Poll for confirmation
       for (let i = 0; i < 30; i++) {
         await new Promise((r) => setTimeout(r, 2000));
-        const txResult = await server.getTransaction(sendResult.hash);
+        const txResult = await server.getTransaction(txHash);
         if (txResult.status !== "NOT_FOUND") {
           if (txResult.status === "SUCCESS") {
             setTxState("success");
