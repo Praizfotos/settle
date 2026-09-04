@@ -14,10 +14,8 @@ soroban-sdk.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true }
+soroban-sdk = { workspace = true, features = ["testutils"] }
 
 [features]
 testutils = ["soroban-sdk/testutils"]
 
-[[bin]]
-name = "stellar-contract"
-path = "src/bin/main.rs"

@@ -1,8 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useWallet } from "@/lib/wallet";
 import { useRouter } from "next/navigation";
+import { Address, Contract, nativeToScVal, TransactionBuilder, Transaction } from "@stellar/stellar-sdk";
+import * as SorobanRpc from "@stellar/stellar-sdk/rpc";
+
+const RPC_URL = "https://soroban-testnet.stellar.org";
+const NETWORK_PASSPHRASE = "Test SDF Network ; September 2015";
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STELLAR_CONTRACT_ADDRESS ?? "";
+
+type TxState =
+  | "idle"
+  | "building"
+  | "signing"
+  | "submitting"
+  | "confirming"
+  | "success"
+  | "error";
 
 export default function NewAgreementPage() {
   const { connected, address } = useWallet();
@@ -14,8 +29,19 @@ export default function NewAgreementPage() {
   );
   const [totalAmount, setTotalAmount] = useState("");
   const [title, setTitle] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [milestoneInput, setMilestoneInput] = useState("");
+  const [txState, setTxState] = useState<TxState>("idle");
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [txError, setTxError] = useState<string | null>(null);
+
+  const generateId = useCallback(() => {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let id = "agr-";
+    for (let i = 0; i < 12; i++) {
+      id += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return id;
+  }, []);
 
   if (!connected) {
     return (
@@ -29,35 +55,89 @@ export default function NewAgreementPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
-    setResult(null);
+    if (!address) return;
+
+    const agreementId = generateId();
+    const amountBigInt = BigInt(Math.round(parseFloat(totalAmount) * 1_000_000));
+    const expiresAt = BigInt(Math.floor(Date.now() / 1000) + 86400 * 30);
+    const milestoneNames = milestoneInput
+      ? milestoneInput.split(",").map((m) => m.trim()).filter(Boolean)
+      : ["default-milestone"];
+
+    setTxState("building");
+    setTxHash(null);
+    setTxError(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-      const res = await fetch(`${apiUrl}/api/v1/agreements`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          counterparty,
-          token,
-          total_amount: Math.round(parseFloat(totalAmount) * 1_000_000),
-          title: title || undefined,
-        }),
-      });
+      const server = new SorobanRpc.Server(RPC_URL, { allowHttp: true });
+      const account = await server.getAccount(address);
+      const contract = new Contract(CONTRACT_ADDRESS);
 
-      const data = await res.json();
-      if (res.ok) {
-        setResult(
-          "Agreement draft created in the database. On-chain submission via Soroban contract is coming soon."
-        );
-        setTimeout(() => router.push("/app/agreements"), 2000);
-      } else {
-        setResult(data.error ?? "Failed to create agreement");
+      const milestoneScVals = milestoneNames.map((name) =>
+        nativeToScVal(name, { type: "string" })
+      );
+
+      const args = [
+        nativeToScVal(agreementId, { type: "string" }),
+        Address.fromString(address).toScVal(),
+        Address.fromString(counterparty).toScVal(),
+        Address.fromString(token).toScVal(),
+        nativeToScVal(amountBigInt.toString(), { type: "i128" }),
+        nativeToScVal(expiresAt.toString(), { type: "u64" }),
+        nativeToScVal(milestoneScVals, { type: "vec" }),
+      ];
+
+      const txBuilder = new TransactionBuilder(account, {
+        fee: "100000",
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
+        .addOperation(contract.call("create_agreement", ...args))
+        .setTimeout(300);
+
+      const transaction = txBuilder.build();
+
+      setTxState("signing");
+
+      // Use Freighter to sign
+      const freighter = await import("@stellar/freighter-api");
+      const signedResult = await freighter.signTransaction(transaction.toXDR(), {
+        networkPassphrase: NETWORK_PASSPHRASE,
+        address,
+      });
+      const signedXdr = typeof signedResult === "string" ? signedResult : signedResult.signedTxXdr;
+
+      setTxState("submitting");
+
+      const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
+      const sendResult = await server.sendTransaction(signedTx);
+
+      if (sendResult.status === "ERROR") {
+        const errorStr = JSON.stringify(sendResult);
+        throw new Error(`Transaction failed: ${errorStr}`);
       }
+
+      setTxHash(sendResult.hash);
+      setTxState("confirming");
+
+      // Poll for confirmation
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const txResult = await server.getTransaction(sendResult.hash);
+        if (txResult.status !== "NOT_FOUND") {
+          if (txResult.status === "SUCCESS") {
+            setTxState("success");
+            setTimeout(() => router.push("/app/agreements"), 3000);
+            return;
+          } else {
+            throw new Error(`Transaction failed: ${txResult.status}`);
+          }
+        }
+      }
+
+      throw new Error("Transaction not confirmed after 60 seconds");
     } catch (err: any) {
-      setResult(err?.message ?? "Network error");
-    } finally {
-      setSubmitting(false);
+      setTxState("error");
+      setTxError(err?.message ?? "Unknown error");
     }
   }
 
@@ -67,7 +147,7 @@ export default function NewAgreementPage() {
         Create Agreement
       </h1>
       <p className="text-[14px] text-gray-500 mb-8">
-        Set up a new programmable settlement agreement on Stellar.
+        Deploy a programmable settlement agreement on Stellar Testnet.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -127,32 +207,63 @@ export default function NewAgreementPage() {
           />
         </div>
 
+        <div>
+          <label className="block text-[13px] font-medium text-gray-700 mb-1.5">
+            Milestones (comma-separated names)
+          </label>
+          <input
+            type="text"
+            value={milestoneInput}
+            onChange={(e) => setMilestoneInput(e.target.value)}
+            placeholder="Design, Development, Launch"
+            className="w-full px-4 py-2.5 text-[14px] border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1254D8] focus:border-transparent"
+          />
+        </div>
+
         <button
           type="submit"
-          disabled={submitting || !counterparty || !totalAmount}
+          disabled={
+            txState !== "idle" ||
+            !counterparty ||
+            !totalAmount
+          }
           className="w-full py-3 text-[14px] font-semibold text-white rounded-[10px] transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
             background: "linear-gradient(135deg, #1254D8 0%, #2F70E8 100%)",
           }}
         >
-          {submitting ? "Creating..." : "Create Agreement"}
+          {txState === "idle" && "Create & Sign Agreement"}
+          {txState === "building" && "Building transaction..."}
+          {txState === "signing" && "Please sign in Freighter..."}
+          {txState === "submitting" && "Submitting to Testnet..."}
+          {txState === "confirming" && "Waiting for confirmation..."}
+          {txState === "success" && "Agreement created!"}
+          {txState === "error" && "Try again"}
         </button>
       </form>
 
-      {result && (
-        <div
-          className={`mt-6 p-4 rounded-xl text-[13px] ${
-            result.includes("Failed") || result.includes("error")
-              ? "bg-red-50 border border-red-200 text-red-700"
-              : "bg-green-50 border border-green-200 text-green-700"
-          }`}
-        >
-          {result}
+      {txHash && (
+        <div className="mt-6 p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-[13px]">
+          <span className="font-medium">Tx Hash:</span>{" "}
+          <a
+            href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-mono"
+          >
+            {txHash}
+          </a>
+        </div>
+      )}
+
+      {txError && (
+        <div className="mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[13px]">
+          {txError}
         </div>
       )}
 
       <p className="mt-6 text-[12px] text-gray-400 text-center">
-        This creates an off-chain draft. On-chain Soroban contract integration is in progress.
+        This deploys a real agreement on Stellar Testnet via Soroban smart contract.
       </p>
     </div>
   );

@@ -1,16 +1,13 @@
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
+use soroban_sdk::{Address, Env, String, Vec};
 
-use crate::types::{Dispute, DisputeStatus, Agreement, AgreementStatus};
+use crate::types::{Dispute, DisputeStatus};
 use crate::errors::SettleError;
 use crate::validation::Validator;
 use crate::events::EventBuilder;
 use crate::storage::{DisputeStorage, AgreementStorage};
 
 /// Dispute contract for structured resolution process
-#[contract]
 pub struct DisputeContract;
-
-#[contractimpl]
 impl DisputeContract {
     /// Open a dispute for an agreement
     pub fn open_dispute(

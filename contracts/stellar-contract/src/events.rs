@@ -114,7 +114,7 @@ impl EventBuilder {
     }
     
     // Milestone events
-    pub fn milestone_created(env: &Env, milestone: &Milestone) {
+    pub fn milestone_created(env: &Env, milestone: &Milestone, participant: &Address) {
         let data = Bytes::new(env);
         Self::emit_event(
             env,
@@ -122,12 +122,12 @@ impl EventBuilder {
             Some(milestone.agreement_id.clone()),
             Some(milestone.id.clone()),
             None,
-            &Address::from_string(&String::from_str(env, "creator")), // TODO: Get from context
+            participant,
             data,
         );
     }
     
-    pub fn milestone_submitted(env: &Env, milestone: &Milestone) {
+    pub fn milestone_submitted(env: &Env, milestone: &Milestone, participant: &Address) {
         let data = Bytes::new(env);
         Self::emit_event(
             env,
@@ -135,12 +135,12 @@ impl EventBuilder {
             Some(milestone.agreement_id.clone()),
             Some(milestone.id.clone()),
             None,
-            &Address::from_string(&String::from_str(env, "submitter")), // TODO: Get from context
+            participant,
             data,
         );
     }
     
-    pub fn milestone_approved(env: &Env, milestone: &Milestone) {
+    pub fn milestone_approved(env: &Env, milestone: &Milestone, participant: &Address) {
         let data = Bytes::new(env);
         Self::emit_event(
             env,
@@ -148,12 +148,12 @@ impl EventBuilder {
             Some(milestone.agreement_id.clone()),
             Some(milestone.id.clone()),
             None,
-            &Address::from_string(&String::from_str(env, "approver")), // TODO: Get from context
+            participant,
             data,
         );
     }
     
-    pub fn milestone_rejected(env: &Env, milestone: &Milestone) {
+    pub fn milestone_rejected(env: &Env, milestone: &Milestone, participant: &Address) {
         let data = Bytes::new(env);
         Self::emit_event(
             env,
@@ -161,7 +161,7 @@ impl EventBuilder {
             Some(milestone.agreement_id.clone()),
             Some(milestone.id.clone()),
             None,
-            &Address::from_string(&String::from_str(env, "rejecter")), // TODO: Get from context
+            participant,
             data,
         );
     }
@@ -180,7 +180,7 @@ impl EventBuilder {
     }
     
     // Escrow events
-    pub fn escrow_funded(env: &Env, agreement_id: &String, amount: i128) {
+    pub fn escrow_funded(env: &Env, agreement_id: &String, _amount: i128, participant: &Address) {
         let data = Bytes::new(env);
         Self::emit_event(
             env,
@@ -188,12 +188,12 @@ impl EventBuilder {
             Some(agreement_id.clone()),
             None,
             None,
-            &Address::from_string(&String::from_str(env, "funder")), // TODO: Get from context
+            participant,
             data,
         );
     }
     
-    pub fn escrow_locked(env: &Env, agreement_id: &String, amount: i128) {
+    pub fn escrow_locked(env: &Env, agreement_id: &String, _amount: i128, participant: &Address) {
         let data = Bytes::new(env);
         Self::emit_event(
             env,
@@ -201,7 +201,7 @@ impl EventBuilder {
             Some(agreement_id.clone()),
             None,
             None,
-            &Address::from_string(&String::from_str(env, "locker")), // TODO: Get from context
+            participant,
             data,
         );
     }

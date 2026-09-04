@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, Env, Bytes};
+use soroban_sdk::{Address, Env, String, Vec};
 
 use crate::errors::SettleError;
 use crate::authorization::Authorization;
@@ -42,8 +42,8 @@ impl UpgradeManager {
     pub fn get_metadata(env: &Env) -> ContractMetadata {
         ContractMetadata {
             version: Self::get_version(env),
-            name: "Settle Protocol".into(),
-            description: "Programmable Settlement Infrastructure".into(),
+            name: String::from_str(env, "Settle Protocol"),
+            description: String::from_str(env, "Programmable Settlement Infrastructure"),
             deployed_at: env.storage()
                 .persistent()
                 .get(&DataKey::DeployedAt)
@@ -173,9 +173,13 @@ impl MigrationManager {
     pub fn get_migration_steps(env: &Env, target_version: u32) -> Vec<u32> {
         let current_version = UpgradeManager::get_version(env);
         if target_version <= current_version {
-            return Vec::new();
+            return Vec::new(env);
         }
-        
-        (current_version + 1..=target_version).collect()
+
+        let mut steps = Vec::new(env);
+        for version in (current_version + 1)..=target_version {
+            steps.push_back(version);
+        }
+        steps
     }
 }

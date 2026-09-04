@@ -29,4 +29,12 @@ impl DisputeService {
         // TODO: submit on-chain resolution, update DB
         todo!()
     }
+
+    pub async fn list_all(&self, _limit: i64, _offset: i64) -> Result<Vec<Dispute>> {
+        Ok(vec![])
+    }
+
+    pub async fn get_by_chain_id(&self, _chain_id: &str) -> Result<Option<Dispute>> {
+        Ok(None)
+    }
 }

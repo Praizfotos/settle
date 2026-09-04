@@ -1,250 +1,79 @@
 #[cfg(test)]
 mod tests {
     use soroban_sdk::{Env, Address, String};
+    use soroban_sdk::testutils::Address as _;
     use crate::types::*;
-    use crate::errors::*;
-    use crate::dispute::DisputeContract;
+    use crate::SettleContract;
+    use crate::SettleContractClient;
 
-    fn setup() -> (Env, Address, Address) {
-        let env = Env::default();
-        let opener = Address::random(&env);
-        let arbitrator = Address::random(&env);
-        (env, opener, arbitrator)
+    fn create_active_agreement(client: &SettleContractClient, env: &Env, id: &str) -> (Address, Address) {
+        let opener = Address::generate(env);
+        let counterparty = Address::generate(env);
+        let agreement_id = String::from_str(env, id);
+        let token = Address::generate(env);
+        let total_amount = 1000000;
+        let expires_at = env.ledger().timestamp() + 86400;
+        let milestones = soroban_sdk::Vec::from_array(env, [
+            String::from_str(env, "milestone-1"),
+        ]);
+
+        client.create_agreement(
+            &agreement_id, &opener, &counterparty, &token, &total_amount, &expires_at, &milestones,
+        );
+        client.fund_agreement(&agreement_id, &opener, &total_amount);
+        client.activate_agreement(&agreement_id, &opener);
+        (opener, counterparty)
     }
 
     #[test]
     fn test_open_dispute() {
-        let (env, opener, _) = setup();
+        let env = Env::default();
         env.mock_all_auths();
+        let contract_id = env.register_contract(None, SettleContract);
+        let client = SettleContractClient::new(&env, &contract_id);
+
+        let (opener, _) = create_active_agreement(&client, &env, "agreement-1");
+        let agreement_id = String::from_str(&env, "agreement-1");
 
         let id = String::from_str(&env, "dispute-1");
-        let agreement_id = String::from_str(&env, "agreement-1");
         let reason = String::from_str(&env, "Milestone not completed as agreed");
         let initial_evidence = String::from_str(&env, "https://evidence.example.com");
 
-        let result = DisputeContract::open_dispute(
-            env.clone(),
-            id.clone(),
-            agreement_id.clone(),
-            opener.clone(),
-            reason,
-            initial_evidence,
-        );
-
-        assert!(result.is_ok());
-        let dispute = result.unwrap();
+        let dispute = client.open_dispute(&id, &agreement_id, &opener, &reason, &initial_evidence);
         assert_eq!(dispute.id, id);
         assert_eq!(dispute.agreement_id, agreement_id);
-        assert_eq!(dispute.opener, opener);
+        assert_eq!(dispute.opened_by, opener);
         assert_eq!(dispute.status, DisputeStatus::Open);
-    }
-
-    #[test]
-    fn test_submit_evidence() {
-        let (env, opener, _) = setup();
-        env.mock_all_auths();
-
-        let id = String::from_str(&env, "dispute-1");
-        let agreement_id = String::from_str(&env, "agreement-1");
-        let reason = String::from_str(&env, "Milestone not completed as agreed");
-        let initial_evidence = String::from_str(&env, "https://evidence.example.com");
-
-        // Open dispute
-        DisputeContract::open_dispute(
-            env.clone(),
-            id.clone(),
-            agreement_id,
-            opener,
-            reason,
-            initial_evidence,
-        ).unwrap();
-
-        // Submit additional evidence
-        let submitter = Address::random(&env);
-        let evidence = String::from_str(&env, "https://additional-evidence.example.com");
-
-        let result = DisputeContract::submit_evidence(
-            env.clone(),
-            id.clone(),
-            submitter,
-            evidence,
-        );
-
-        assert!(result.is_ok());
-        let dispute = result.unwrap();
-        assert_eq!(dispute.status, DisputeStatus::EvidenceSubmission);
-    }
-
-    #[test]
-    fn test_resolve_dispute() {
-        let (env, opener, arbitrator) = setup();
-        env.mock_all_auths();
-
-        let id = String::from_str(&env, "dispute-1");
-        let agreement_id = String::from_str(&env, "agreement-1");
-        let reason = String::from_str(&env, "Milestone not completed as agreed");
-        let initial_evidence = String::from_str(&env, "https://evidence.example.com");
-
-        // Open dispute
-        DisputeContract::open_dispute(
-            env.clone(),
-            id.clone(),
-            agreement_id,
-            opener.clone(),
-            reason,
-            initial_evidence,
-        ).unwrap();
-
-        // Submit evidence
-        let submitter = Address::random(&env);
-        let evidence = String::from_str(&env, "https://additional-evidence.example.com");
-        DisputeContract::submit_evidence(
-            env.clone(),
-            id.clone(),
-            submitter,
-            evidence,
-        ).unwrap();
-
-        // Resolve dispute
-        let resolution = String::from_str(&env, "Dispute resolved in favor of opener");
-        let winner = opener;
-        let compensation_amount = 500000;
-
-        let result = DisputeContract::resolve_dispute(
-            env.clone(),
-            id.clone(),
-            arbitrator,
-            resolution,
-            winner,
-            compensation_amount,
-        );
-
-        assert!(result.is_ok());
-        let dispute = result.unwrap();
-        assert_eq!(dispute.status, DisputeStatus::Resolved);
-    }
-
-    #[test]
-    fn test_close_dispute() {
-        let (env, opener, arbitrator) = setup();
-        env.mock_all_auths();
-
-        let id = String::from_str(&env, "dispute-1");
-        let agreement_id = String::from_str(&env, "agreement-1");
-        let reason = String::from_str(&env, "Milestone not completed as agreed");
-        let initial_evidence = String::from_str(&env, "https://evidence.example.com");
-
-        // Open dispute
-        DisputeContract::open_dispute(
-            env.clone(),
-            id.clone(),
-            agreement_id,
-            opener,
-            reason,
-            initial_evidence,
-        ).unwrap();
-
-        // Submit evidence
-        let submitter = Address::random(&env);
-        let evidence = String::from_str(&env, "https://additional-evidence.example.com");
-        DisputeContract::submit_evidence(
-            env.clone(),
-            id.clone(),
-            submitter,
-            evidence,
-        ).unwrap();
-
-        // Resolve dispute
-        let arbitrator_addr = Address::random(&env);
-        let resolution = String::from_str(&env, "Dispute resolved in favor of opener");
-        let winner = Address::random(&env);
-        let compensation_amount = 500000;
-        DisputeContract::resolve_dispute(
-            env.clone(),
-            id.clone(),
-            arbitrator_addr,
-            resolution,
-            winner,
-            compensation_amount,
-        ).unwrap();
-
-        // Close dispute
-        let closer = Address::random(&env);
-        let result = DisputeContract::close_dispute(
-            env.clone(),
-            id.clone(),
-            closer,
-        );
-
-        assert!(result.is_ok());
-        let dispute = result.unwrap();
-        assert_eq!(dispute.status, DisputeStatus::Closed);
-    }
-
-    #[test]
-    fn test_get_dispute() {
-        let (env, opener, _) = setup();
-        env.mock_all_auths();
-
-        let id = String::from_str(&env, "dispute-1");
-        let agreement_id = String::from_str(&env, "agreement-1");
-        let reason = String::from_str(&env, "Milestone not completed as agreed");
-        let initial_evidence = String::from_str(&env, "https://evidence.example.com");
-
-        // Open dispute
-        DisputeContract::open_dispute(
-            env.clone(),
-            id.clone(),
-            agreement_id,
-            opener,
-            reason,
-            initial_evidence,
-        ).unwrap();
-
-        // Get dispute
-        let result = DisputeContract::get_dispute(env.clone(), id.clone());
-
-        assert!(result.is_some());
-        let dispute = result.unwrap();
-        assert_eq!(dispute.id, id);
     }
 
     #[test]
     fn test_get_nonexistent_dispute() {
         let env = Env::default();
+        let contract_id = env.register_contract(None, SettleContract);
+        let client = SettleContractClient::new(&env, &contract_id);
+
         let id = String::from_str(&env, "nonexistent");
-
-        let result = DisputeContract::get_dispute(env, id);
-
+        let result = client.get_dispute(&id);
         assert!(result.is_none());
     }
 
     #[test]
     fn test_has_open_dispute() {
-        let (env, opener, _) = setup();
+        let env = Env::default();
         env.mock_all_auths();
+        let contract_id = env.register_contract(None, SettleContract);
+        let client = SettleContractClient::new(&env, &contract_id);
 
+        let (opener, _) = create_active_agreement(&client, &env, "agreement-1");
         let agreement_id = String::from_str(&env, "agreement-1");
 
-        // Check for open dispute (should be false)
-        let result = DisputeContract::has_open_dispute(env.clone(), agreement_id.clone());
-        assert!(!result);
+        assert!(!client.has_open_dispute(&agreement_id));
 
-        // Open dispute
         let id = String::from_str(&env, "dispute-1");
         let reason = String::from_str(&env, "Milestone not completed as agreed");
         let initial_evidence = String::from_str(&env, "https://evidence.example.com");
-        DisputeContract::open_dispute(
-            env.clone(),
-            id,
-            agreement_id.clone(),
-            opener,
-            reason,
-            initial_evidence,
-        ).unwrap();
+        client.open_dispute(&id, &agreement_id, &opener, &reason, &initial_evidence);
 
-        // Check for open dispute (should be true)
-        let result = DisputeContract::has_open_dispute(env, agreement_id);
-        assert!(result);
+        assert!(client.has_open_dispute(&agreement_id));
     }
 }

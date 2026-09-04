@@ -1,3 +1,4 @@
+use core::cmp;
 use soroban_sdk::{contracttype, Address, Env, String, Vec};
 
 use crate::types::{Agreement, Milestone, Dispute, Escrow, Participant};
@@ -62,7 +63,7 @@ impl AgreementStorage {
         
         let mut agreements = Vec::new(env);
         let start = offset as usize;
-        let end = std::cmp::min(start + limit as usize, agreement_ids.len() as usize);
+        let end = cmp::min(start + limit as usize, agreement_ids.len() as usize);
         
         for i in start..end {
             if let Some(agreement) = Self::get(env, &agreement_ids.get(i as u32).unwrap()) {
@@ -115,7 +116,7 @@ impl MilestoneStorage {
         
         let mut milestones = Vec::new(env);
         let start = offset as usize;
-        let end = std::cmp::min(start + limit as usize, milestone_ids.len() as usize);
+        let end = cmp::min(start + limit as usize, milestone_ids.len() as usize);
         
         for i in start..end {
             if let Some(milestone) = Self::get(env, &milestone_ids.get(i as u32).unwrap()) {
@@ -179,7 +180,7 @@ impl DisputeStorage {
         
         let mut disputes = Vec::new(env);
         let start = offset as usize;
-        let end = std::cmp::min(start + limit as usize, dispute_ids.len() as usize);
+        let end = cmp::min(start + limit as usize, dispute_ids.len() as usize);
         
         for i in start..end {
             if let Some(dispute) = Self::get(env, &dispute_ids.get(i as u32).unwrap()) {

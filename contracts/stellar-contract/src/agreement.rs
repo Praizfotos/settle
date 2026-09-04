@@ -1,16 +1,13 @@
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec};
+use soroban_sdk::{Address, Env, String, Vec};
 
-use crate::types::{Agreement, AgreementStatus, EventType, SettleEvent};
+use crate::types::{Agreement, AgreementStatus};
 use crate::errors::SettleError;
 use crate::validation::Validator;
 use crate::events::EventBuilder;
 use crate::storage::AgreementStorage;
 
 /// Agreement contract with domain-driven architecture
-#[contract]
 pub struct AgreementContract;
-
-#[contractimpl]
 impl AgreementContract {
     /// Create a new agreement between parties
     pub fn create_agreement(

@@ -1,16 +1,13 @@
-use soroban_sdk::{contract, contractimpl, Address, Env, String};
+use soroban_sdk::{Address, Env, String};
 
-use crate::types::{Escrow, EscrowStatus, Agreement, AgreementStatus};
+use crate::types::{Escrow, EscrowStatus, AgreementStatus};
 use crate::errors::SettleError;
 use crate::validation::Validator;
 use crate::events::EventBuilder;
 use crate::storage::{EscrowStorage, AgreementStorage};
 
 /// Escrow contract for secure fund management with automated releases
-#[contract]
 pub struct EscrowContract;
-
-#[contractimpl]
 impl EscrowContract {
     /// Create escrow for an agreement
     pub fn create_escrow(
@@ -93,7 +90,7 @@ impl EscrowContract {
         EscrowStorage::set(&env, &agreement_id, &escrow);
         
         // Emit event
-        EventBuilder::escrow_funded(&env, &agreement_id, amount);
+        EventBuilder::escrow_funded(&env, &agreement_id, amount, &funder);
         
         Ok(escrow)
     }
@@ -145,7 +142,7 @@ impl EscrowContract {
         EscrowStorage::set(&env, &agreement_id, &escrow);
         
         // Emit event
-        EventBuilder::escrow_locked(&env, &agreement_id, amount);
+        EventBuilder::escrow_locked(&env, &agreement_id, amount, &locker);
         
         Ok(escrow)
     }

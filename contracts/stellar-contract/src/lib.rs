@@ -1,3 +1,7 @@
+#![no_std]
+
+extern crate soroban_sdk;
+
 use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
 
 // Module declarations
@@ -33,7 +37,6 @@ use agreement::AgreementContract;
 use escrow::EscrowContract;
 use milestone::MilestoneContract;
 use dispute::DisputeContract;
-use authorization::Authorization;
 use upgrade::UpgradeManager;
 
 /// Main Settle contract with modular architecture and separated concerns
@@ -44,8 +47,6 @@ pub struct SettleContract;
 impl SettleContract {
     /// Initialize the contract
     pub fn initialize(env: Env, admin: Address) -> Result<(), SettleError> {
-        admin.require_auth();
-        
         // Check if contract operations are not paused
         UpgradeManager::require_not_paused(&env)?;
         

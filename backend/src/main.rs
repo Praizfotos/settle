@@ -13,6 +13,7 @@ use tower_http::cors::CorsLayer;
 use axum::Router;
 
 mod config;
+mod app_state;
 mod api;
 mod domain;
 mod errors;
@@ -22,21 +23,13 @@ mod services;
 mod stellar;
 
 use config::Config;
+use app_state::AppState;
 use database::DatabaseManager;
 use stellar::client::StellarClient;
 use indexer::listener::{IndexerListener, ListenerConfig};
 use services::*;
 
-/// Application state shared across all handlers and services
-#[derive(Clone)]
-pub struct AppState {
-    pub db_pool: sqlx::PgPool,
-    pub stellar_client: Arc<StellarClient>,
-    pub agreement_service: Arc<AgreementService>,
-    pub settlement_service: Arc<SettlementService>,
-    pub dispute_service: Arc<DisputeService>,
-    pub reputation_service: Arc<ReputationService>,
-}
+use app_state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<()> {

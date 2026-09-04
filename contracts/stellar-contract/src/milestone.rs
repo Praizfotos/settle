@@ -1,16 +1,13 @@
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
+use soroban_sdk::{Address, Env, String, Vec};
 
-use crate::types::{Milestone, MilestoneStatus, Agreement, AgreementStatus};
+use crate::types::{Milestone, MilestoneStatus};
 use crate::errors::SettleError;
 use crate::validation::Validator;
 use crate::events::EventBuilder;
 use crate::storage::{MilestoneStorage, AgreementStorage};
 
 /// Milestone contract for progress tracking and validation
-#[contract]
 pub struct MilestoneContract;
-
-#[contractimpl]
 impl MilestoneContract {
     /// Create a new milestone for an agreement
     pub fn create_milestone(
@@ -64,7 +61,7 @@ impl MilestoneContract {
         MilestoneStorage::set(&env, &id, &milestone);
         
         // Emit event
-        EventBuilder::milestone_created(&env, &milestone);
+        EventBuilder::milestone_created(&env, &milestone, &creator);
         
         Ok(milestone)
     }
@@ -106,7 +103,7 @@ impl MilestoneContract {
         MilestoneStorage::set(&env, &id, &milestone);
         
         // Emit event
-        EventBuilder::milestone_submitted(&env, &milestone);
+        EventBuilder::milestone_submitted(&env, &milestone, &submitter);
         
         Ok(milestone)
     }
@@ -148,7 +145,7 @@ impl MilestoneContract {
         MilestoneStorage::set(&env, &id, &milestone);
         
         // Emit event
-        EventBuilder::milestone_approved(&env, &milestone);
+        EventBuilder::milestone_approved(&env, &milestone, &approver);
         
         Ok(milestone)
     }
@@ -195,7 +192,7 @@ impl MilestoneContract {
         MilestoneStorage::set(&env, &id, &milestone);
         
         // Emit event
-        EventBuilder::milestone_rejected(&env, &milestone);
+        EventBuilder::milestone_rejected(&env, &milestone, &rejecter);
         
         Ok(milestone)
     }

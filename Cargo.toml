@@ -58,6 +58,20 @@ description = "Programmable Settlement Infrastructure on Stellar"
 keywords = ["stellar", "soroban", "settlement", "escrow", "contracts"]
 categories = ["web-programming", "cryptography::cryptocurrencies"]
 
+[profile.release]
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "z"
+
+[profile.release-with-panic-unwind]
+inherits = "release"
+panic = "unwind"
+
 [workspace.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

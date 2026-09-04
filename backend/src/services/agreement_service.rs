@@ -44,4 +44,25 @@ impl AgreementService {
         // TODO: update agreement state to Completed in DB
         Ok(())
     }
+
+    /// Handle a created event from the indexer.
+    pub async fn handle_created_event(&self, _on_chain_id: &str, _data: &serde_json::Value) -> Result<()> {
+        info!("handling AgreementCreated event");
+        Ok(())
+    }
+
+    /// List all agreements.
+    pub async fn list_all(&self, _limit: i64, _offset: i64) -> Result<Vec<Agreement>> {
+        Ok(vec![])
+    }
+
+    /// List agreements for a specific address.
+    pub async fn list_for_address(&self, _address: &str, _limit: i64, _offset: i64) -> Result<Vec<Agreement>> {
+        Ok(vec![])
+    }
+
+    /// Get an agreement by its on-chain ID.
+    pub async fn get_by_chain_id(&self, _chain_id: &str) -> Result<Option<Agreement>> {
+        Ok(None)
+    }
 }

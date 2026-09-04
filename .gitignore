@@ -14,7 +14,7 @@
 /coverage
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
@@ -106,3 +106,4 @@ jspm_packages/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+apps/web/.env
