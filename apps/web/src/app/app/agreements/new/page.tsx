@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@/lib/wallet";
 import { useRouter } from "next/navigation";
-import { Address, Contract, nativeToScVal, StrKey, TransactionBuilder, Transaction } from "@stellar/stellar-sdk";
+import { Address, Contract, nativeToScVal, StrKey, TransactionBuilder, Transaction, xdr } from "@stellar/stellar-sdk";
 import * as SorobanRpc from "@stellar/stellar-sdk/rpc";
 
 const RPC_URL = "https://soroban-testnet.stellar.org";
@@ -92,7 +92,7 @@ export default function NewAgreementPage() {
         toAddressScVal(token),
         nativeToScVal(amountBigInt.toString(), { type: "i128" }),
         nativeToScVal(expiresAt.toString(), { type: "u64" }),
-        nativeToScVal(milestoneScVals, { type: "vec" }),
+        xdr.ScVal.scvVec(milestoneScVals),
       ];
 
       const txBuilder = new TransactionBuilder(account, {
