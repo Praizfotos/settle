@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { SettleLogo } from "@/components/layout/SettleLogo";
+import { useWallet } from "@/lib/wallet";
 
 const navLinks = [
   { label: "Product", href: "#features" },
@@ -14,6 +16,7 @@ const navLinks = [
 export function Navigation() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { connected, address, connecting, connect } = useWallet();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -32,9 +35,9 @@ export function Navigation() {
     >
       <div className="max-w-[1280px] mx-auto px-6 md:px-10 h-[60px] flex items-center justify-between gap-8">
         {/* Logo */}
-        <a href="/" aria-label="Settle home" className="flex-shrink-0">
+        <Link href="/" aria-label="Settle home" className="flex-shrink-0">
           <SettleLogo />
-        </a>
+        </Link>
 
         {/* Desktop nav */}
         <nav
@@ -54,21 +57,31 @@ export function Navigation() {
 
         {/* Right actions */}
         <div className="hidden md:flex items-center gap-3">
+          {connected && address ? (
+            <a
+              href="/app"
+              className="px-4 py-1.5 text-[13.5px] font-medium text-gray-600 hover:text-gray-900 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
+            >
+              Open App
+            </a>
+          ) : (
+            <button
+              onClick={connect}
+              disabled={connecting}
+              className="px-4 py-1.5 text-[13.5px] font-medium text-gray-600 hover:text-gray-900 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg disabled:opacity-50"
+            >
+              {connecting ? "Connecting..." : "Connect Wallet"}
+            </button>
+          )}
           <a
-            href="#signin"
-            className="px-4 py-1.5 text-[13.5px] font-medium text-gray-600 hover:text-gray-900 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg"
-          >
-            Sign in
-          </a>
-          <a
-            href="#get-started"
+            href="/app"
             className="px-4 py-2 text-[13.5px] font-semibold text-white rounded-[10px] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 hover:scale-[1.02] active:scale-[0.98]"
             style={{
               background: "linear-gradient(135deg, #1254D8 0%, #2F70E8 100%)",
               boxShadow: "0 1px 3px rgba(18,84,216,0.35)",
             }}
           >
-            Get Started
+            {connected ? "Dashboard" : "Get Started"}
           </a>
         </div>
 
@@ -105,15 +118,25 @@ export function Navigation() {
             </a>
           ))}
           <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col gap-2">
-            <a href="#signin" className="px-3 py-2.5 text-[14px] font-medium text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors">
-              Sign in
-            </a>
+            {connected && address ? (
+              <a href="/app" className="px-3 py-2.5 text-[14px] font-medium text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors">
+                Open App
+              </a>
+            ) : (
+              <button
+                onClick={() => { connect(); setMobileOpen(false); }}
+                disabled={connecting}
+                className="px-3 py-2.5 text-[14px] font-medium text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
+              >
+                {connecting ? "Connecting..." : "Connect Wallet"}
+              </button>
+            )}
             <a
-              href="#get-started"
+              href="/app"
               className="px-4 py-2.5 text-[14px] font-semibold text-white text-center rounded-[10px]"
               style={{ background: "linear-gradient(135deg, #1254D8 0%, #2F70E8 100%)" }}
             >
-              Get Started
+              {connected ? "Dashboard" : "Get Started"}
             </a>
           </div>
         </div>
