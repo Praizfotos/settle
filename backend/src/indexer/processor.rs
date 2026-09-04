@@ -5,7 +5,7 @@
 //! representation of on-chain state that powers the API queries.
 
 use sqlx::PgPool;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 use serde_json::json;
 
 use crate::errors::{AppError, Result};
@@ -182,7 +182,18 @@ pub async fn process(db_pool: &PgPool, event: SettleEvent) -> Result<()> {
             ..
         } => {
             update_dispute_status(db_pool, dispute_id, "CLOSED").await?;
-        },
+        }
+        
+        // Escrow events are acknowledged but not yet written to domain tables.
+        // The on-chain escrow state is the source of truth until the escrow
+        // projection is implemented.
+        SettleEvent::EscrowFunded { .. }
+        | SettleEvent::EscrowLocked { .. }
+        | SettleEvent::EscrowReleased { .. }
+        | SettleEvent::EscrowRefunded { .. }
+        | SettleEvent::ReputationUpdated { .. } => {
+            // Stored in settlement_events audit trail above; no domain projection yet.
+        }
         
         _ => {
             warn!("Unhandled event type: {:?}", event);
@@ -192,7 +203,8 @@ pub async fn process(db_pool: &PgPool, event: SettleEvent) -> Result<()> {
     Ok(())
 }
 
-/// Store event in settlement_events table for audit trail
+/// Store event in settlement_events table for audit trail.
+/// Uses ON CONFLICT to avoid duplicate entries on reprocessing.
 async fn store_event(db_pool: &PgPool, event: &SettleEvent) -> Result<()> {
     let (event_type, agreement_id, milestone_id, dispute_id, participant, block_height, tx_hash) = match event {
         SettleEvent::AgreementCreated { agreement_id, creator, ledger, tx_hash, .. } => {
@@ -201,21 +213,67 @@ async fn store_event(db_pool: &PgPool, event: &SettleEvent) -> Result<()> {
         SettleEvent::AgreementFunded { agreement_id, funder, ledger, tx_hash, .. } => {
             ("AgreementFunded", Some(agreement_id.clone()), None, None, funder.clone(), *ledger as i64, tx_hash.clone())
         },
+        SettleEvent::AgreementActivated { agreement_id, activator, ledger, tx_hash, .. } => {
+            ("AgreementActivated", Some(agreement_id.clone()), None, None, activator.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::AgreementCompleted { agreement_id, completer, ledger, tx_hash, .. } => {
+            ("AgreementCompleted", Some(agreement_id.clone()), None, None, completer.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::AgreementExpired { agreement_id, ledger, tx_hash, .. } => {
+            ("AgreementExpired", Some(agreement_id.clone()), None, None, String::new(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::AgreementCancelled { agreement_id, canceller, ledger, tx_hash, .. } => {
+            ("AgreementCancelled", Some(agreement_id.clone()), None, None, canceller.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::MilestoneCreated { agreement_id, milestone_id, creator, ledger, tx_hash, .. } => {
+            ("MilestoneCreated", Some(agreement_id.clone()), Some(milestone_id.clone()), None, creator.clone(), *ledger as i64, tx_hash.clone())
+        },
         SettleEvent::MilestoneSubmitted { agreement_id, milestone_id, submitter, ledger, tx_hash, .. } => {
             ("MilestoneSubmitted", Some(agreement_id.clone()), Some(milestone_id.clone()), None, submitter.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::MilestoneApproved { agreement_id, milestone_id, approver, ledger, tx_hash, .. } => {
+            ("MilestoneApproved", Some(agreement_id.clone()), Some(milestone_id.clone()), None, approver.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::MilestoneRejected { agreement_id, milestone_id, rejecter, ledger, tx_hash, .. } => {
+            ("MilestoneRejected", Some(agreement_id.clone()), Some(milestone_id.clone()), None, rejecter.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::MilestoneReleased { agreement_id, milestone_id, releaser, ledger, tx_hash, .. } => {
+            ("MilestoneReleased", Some(agreement_id.clone()), Some(milestone_id.clone()), None, releaser.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::EscrowFunded { agreement_id, funder, ledger, tx_hash, .. } => {
+            ("EscrowFunded", Some(agreement_id.clone()), None, None, funder.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::EscrowLocked { agreement_id, locker, ledger, tx_hash, .. } => {
+            ("EscrowLocked", Some(agreement_id.clone()), None, None, locker.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::EscrowReleased { agreement_id, releaser, ledger, tx_hash, .. } => {
+            ("EscrowReleased", Some(agreement_id.clone()), None, None, releaser.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::EscrowRefunded { agreement_id, refunder, ledger, tx_hash, .. } => {
+            ("EscrowRefunded", Some(agreement_id.clone()), None, None, refunder.clone(), *ledger as i64, tx_hash.clone())
         },
         SettleEvent::DisputeOpened { agreement_id, dispute_id, opener, ledger, tx_hash, .. } => {
             ("DisputeOpened", Some(agreement_id.clone()), None, Some(dispute_id.clone()), opener.clone(), *ledger as i64, tx_hash.clone())
         },
-        _ => {
-            return Ok(()); // Skip storing other event types for now
-        }
+        SettleEvent::EvidenceSubmitted { agreement_id, dispute_id, submitter, ledger, tx_hash, .. } => {
+            ("EvidenceSubmitted", Some(agreement_id.clone()), None, Some(dispute_id.clone()), submitter.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::DisputeResolved { agreement_id, dispute_id, arbitrator, ledger, tx_hash, .. } => {
+            ("DisputeResolved", Some(agreement_id.clone()), None, Some(dispute_id.clone()), arbitrator.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::DisputeClosed { agreement_id, dispute_id, closer, ledger, tx_hash, .. } => {
+            ("DisputeClosed", Some(agreement_id.clone()), None, Some(dispute_id.clone()), closer.clone(), *ledger as i64, tx_hash.clone())
+        },
+        SettleEvent::ReputationUpdated { participant, ledger, tx_hash, .. } => {
+            ("ReputationUpdated", None, None, None, participant.clone(), *ledger as i64, tx_hash.clone())
+        },
     };
 
     sqlx::query(
         r#"
         INSERT INTO settlement_events (event_type, agreement_id, milestone_id, dispute_id, participant, data, timestamp, block_height, transaction_hash)
         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
+        ON CONFLICT DO NOTHING
         "#
     )
     .bind(event_type)
@@ -223,7 +281,7 @@ async fn store_event(db_pool: &PgPool, event: &SettleEvent) -> Result<()> {
     .bind(milestone_id)
     .bind(dispute_id)
     .bind(participant)
-    .bind(json!({})) // For now, store empty JSON. In production, store full event data
+    .bind(json!({}))
     .bind(block_height)
     .bind(tx_hash)
     .execute(db_pool)
@@ -431,8 +489,15 @@ async fn create_or_update_dispute(
 }
 
 async fn add_dispute_evidence(db_pool: &PgPool, dispute_id: &str, evidence: &str) -> Result<()> {
+    // Idempotent: only append if evidence string doesn't already exist
     sqlx::query(
-        "UPDATE disputes SET evidence = array_append(evidence, $1), updated_at = NOW() WHERE on_chain_id = $2"
+        r#"
+        UPDATE disputes SET evidence = CASE 
+            WHEN $1 = ANY(evidence) THEN evidence 
+            ELSE array_append(evidence, $1) 
+        END, updated_at = NOW() 
+        WHERE on_chain_id = $2
+        "#
     )
     .bind(evidence)
     .bind(dispute_id)
